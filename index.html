@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vemhességkövető</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Vemhességkövető">
+  <link rel="apple-touch-icon" href="icon.png">
+
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f3f3f3;
+    }
+    h1, h3 {
+      text-align: center;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    input, textarea, button, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      font-weight: bold;
+    }
+    .animal {
+      border-left: 5px solid #007bff;
+      padding-left: 10px;
+      margin-top: 10px;
+    }
+    small {
+      display: block;
+      color: gray;
+    }
+    .toggle-view {
+      margin-top: 10px;
+      text-align: center;
+    }
+    .toggle-view button {
+      background: #28a745;
+    }
+  </style>
+</head>
+<body>
+  <h1>Vemhességkövető</h1>
+
+  <div class="card">
+    <h3>Új tehén rögzítése</h3>
+    <input type="text" id="name" placeholder="Tehén neve vagy azonosítója" />
+    <input type="date" id="inseminationDate" />
+    <textarea id="notes" placeholder="Megjegyzés (pl. fajta, viselkedés)"></textarea>
+    <button onclick="addCow()">Mentés</button>
+  </div>
+
+  <div class="card toggle-view">
+    <button onclick="toggleSorted()">Váltás: Ellés szerint rendezve</button>
+  </div>
+
+  <div class="card">
+    <h3>Állomány</h3>
+    <div id="animalList"></div>
+  </div>
+
+  <script>
+    const list = document.getElementById("animalList");
+    let sortedView = false;
+
+    function calculateDueDate(dateStr) {
+      const date = new Date(dateStr);
+      if (isNaN(date)) return null;
+      date.setDate(date.getDate() + 283);
+      return date;
+    }
+
+    function daysLeft(dueDate) {
+      const today = new Date();
+      const timeDiff = dueDate - today;
+      return Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+    }
+
+    function saveData(data) {
+      localStorage.setItem("cows", JSON.stringify(data));
+    }
+
+    function loadData() {
+      return JSON.parse(localStorage.getItem("cows") || "[]");
+    }
+
+    function addCow() {
+      const name = document.getElementById("name").value.trim();
+      const insemination = document.getElementById("inseminationDate").value;
+      const notes = document.getElementById("notes").value.trim();
+
+      if (!name || !insemination) return alert("Adj meg minden kötelező adatot!");
+
+      const data = loadData();
+      data.push({ name, insemination, notes });
+      saveData(data);
+      renderList();
+      document.getElementById("name").value = "";
+      document.getElementById("inseminationDate").value = "";
+      document.getElementById("notes").value = "";
+    }
+
+    function toggleSorted() {
+      sortedView = !sortedView;
+      renderList();
+    }
+
+    function renderList() {
+      let data = loadData();
+      if (sortedView) {
+        data = data.slice().sort((a, b) => {
+          const d1 = calculateDueDate(a.insemination);
+          const d2 = calculateDueDate(b.insemination);
+          return d1 - d2;
+        });
+      }
+      list.innerHTML = "";
+      data.forEach((cow, i) => {
+        const due = calculateDueDate(cow.insemination);
+        const dueStr = due ? due.toISOString().split("T")[0] : "N/A";
+        const days = due ? daysLeft(due) : "N/A";
+
+        const div = document.createElement("div");
+        div.className = "animal";
+        div.innerHTML = `
+          <strong>${cow.name}</strong>
+          <small>Termékenyítés: ${cow.insemination}</small>
+          <small>Várható ellés: ${dueStr}</small>
+          <small>Hátralévő napok: ${days}</small>
+          <small>Megjegyzés: ${cow.notes || "—"}</small>
+          <button onclick="deleteCow(${i})">Törlés</button>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function deleteCow(index) {
+      const data = loadData();
+      if (confirm("Biztosan törlöd ezt a bejegyzést?")) {
+        data.splice(index, 1);
+        saveData(data);
+        renderList();
+      }
+    }
+
+    renderList();
+  </script>
+</body>
+</html>
